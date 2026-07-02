@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type Todo = {
   id: string;
@@ -10,9 +10,9 @@ type Todo = {
   completed: boolean;
 };
 
-export default function Dashboard() {
-  const supabase = createClient();
+export default function DashboardPage() {
   const router = useRouter();
+  const supabase = createClient();
 
   const [todos, setTodos] = useState<Todo[]>([]);
   const [text, setText] = useState("");
@@ -33,34 +33,40 @@ export default function Dashboard() {
   }
 
   async function fetchTodos() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("todos")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (data) setTodos(data);
+    if (!error && data) {
+      setTodos(data);
+    }
   }
 
   async function addTodo() {
-    if (!text) return;
+    if (!text.trim()) return;
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    await supabase.from("todos").insert({
+    const { error } = await supabase.from("todos").insert({
       text,
       user_id: user?.id,
     });
 
-    setText("");
-    fetchTodos();
+    if (!error) {
+      setText("");
+      fetchTodos();
+    }
   }
 
   async function toggleTodo(id: string, completed: boolean) {
     await supabase
       .from("todos")
-      .update({ completed: !completed })
+      .update({
+        completed: !completed,
+      })
       .eq("id", id);
 
     fetchTodos();
@@ -74,29 +80,35 @@ export default function Dashboard() {
 
   async function logout() {
     await supabase.auth.signOut();
+
     router.push("/login");
   }
 
   return (
     <div className="min-h-screen bg-black text-white flex justify-center p-10">
       <div className="w-full max-w-xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Todos</h1>
+        
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold">
+            Todo App
+          </h1>
 
           <button
             onClick={logout}
-            className="bg-zinc-800 px-4 py-2 rounded-lg"
+            className="bg-zinc-800 px-4 py-2 rounded-lg hover:bg-zinc-700"
           >
             Logout
           </button>
         </div>
 
-        <div className="flex gap-3 mb-5">
+        
+        <div className="flex gap-3 mb-6">
           <input
+            type="text"
+            placeholder="Add a todo..."
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Add a todo..."
-            className="flex-1 bg-zinc-900 p-4 rounded-xl outline-none"
+            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 outline-none"
           />
 
           <button
@@ -107,11 +119,12 @@ export default function Dashboard() {
           </button>
         </div>
 
+        
         <div className="space-y-3">
           {todos.map((todo) => (
             <div
               key={todo.id}
-              className="bg-zinc-900 p-4 rounded-xl flex justify-between items-center"
+              className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
                 <input
@@ -125,7 +138,7 @@ export default function Dashboard() {
                 <p
                   className={
                     todo.completed
-                      ? "line-through text-gray-500"
+                      ? "line-through text-zinc-500"
                       : ""
                   }
                 >
@@ -133,8 +146,11 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              <button onClick={() => deleteTodo(todo.id)}>
-                🗑️
+              <button
+                onClick={() => deleteTodo(todo.id)}
+                className="text-red-400"
+              >
+                Delete
               </button>
             </div>
           ))}

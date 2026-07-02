@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,9 +19,11 @@ export async function signup(
   if (!email || !password) {
     return { error: "Enter an email and password." };
   }
+
   if (password.length < 6) {
     return { error: "Password must be at least 6 characters." };
   }
+
   if (password !== confirmPassword) {
     return { error: "Passwords don't match." };
   }
@@ -47,17 +48,13 @@ export async function signup(
 }
 
 export async function login(
-  _prevState: AuthState,
+  prevState: AuthState,
   formData: FormData
 ): Promise<AuthState> {
-  const email = String(formData.get("email") || "").trim();
-  const password = String(formData.get("password") || "");
-
-  if (!email || !password) {
-    return { error: "Enter an email and password." };
-  }
-
   const supabase = createClient();
+
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -65,16 +62,10 @@ export async function login(
   });
 
   if (error) {
-    return { error: error.message };
+    return {
+      error: error.message,
+    };
   }
 
-  revalidatePath("/", "layout");
   redirect("/dashboard");
-}
-
-export async function logout() {
-  const supabase = createClient();
-  await supabase.auth.signOut();
-  revalidatePath("/", "layout");
-  redirect("/login");
 }
