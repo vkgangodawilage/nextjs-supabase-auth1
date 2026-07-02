@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useFormState, useFormStatus } from "react-dom";
 import { login, type AuthState } from "@/app/auth/actions";
@@ -47,9 +47,10 @@ export default function LoginForm() {
           name="password"
           type="password"
           required
+          minLength={6}
           autoComplete="current-password"
           className="w-full rounded-md border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-          placeholder="••••••••"
+          placeholder="Enter your password"
         />
       </div>
 

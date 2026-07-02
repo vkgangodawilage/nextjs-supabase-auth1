@@ -1,35 +1,145 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { logout } from "@/app/auth/actions";
+"use client";
 
-export default async function DashboardPage() {
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+
+type Todo = {
+  id: string;
+  text: string;
+  completed: boolean;
+};
+
+export default function Dashboard() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const router = useRouter();
 
-  if (!user) {
-    redirect("/login");
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    checkUser();
+    fetchTodos();
+  }, []);
+
+  async function checkUser() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.push("/login");
+    }
+  }
+
+  async function fetchTodos() {
+    const { data } = await supabase
+      .from("todos")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (data) setTodos(data);
+  }
+
+  async function addTodo() {
+    if (!text) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    await supabase.from("todos").insert({
+      text,
+      user_id: user?.id,
+    });
+
+    setText("");
+    fetchTodos();
+  }
+
+  async function toggleTodo(id: string, completed: boolean) {
+    await supabase
+      .from("todos")
+      .update({ completed: !completed })
+      .eq("id", id);
+
+    fetchTodos();
+  }
+
+  async function deleteTodo(id: string) {
+    await supabase.from("todos").delete().eq("id", id);
+
+    fetchTodos();
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    router.push("/login");
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm text-center">
-        <p className="text-xs uppercase tracking-[0.2em] text-accent">
-          Signed in
-        </p>
-        <h1 className="mt-2 font-display text-3xl">You&apos;re in.</h1>
-        <p className="mt-4 text-sm text-ink/60">{user.email}</p>
+    <div className="min-h-screen bg-black text-white flex justify-center p-10">
+      <div className="w-full max-w-xl">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Todos</h1>
 
-        <form action={logout} className="mt-8">
           <button
-            type="submit"
-            className="w-full rounded-md border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-accentSoft"
+            onClick={logout}
+            className="bg-zinc-800 px-4 py-2 rounded-lg"
           >
-            Sign out
+            Logout
           </button>
-        </form>
+        </div>
+
+        <div className="flex gap-3 mb-5">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Add a todo..."
+            className="flex-1 bg-zinc-900 p-4 rounded-xl outline-none"
+          />
+
+          <button
+            onClick={addTodo}
+            className="bg-white text-black px-6 rounded-xl font-semibold"
+          >
+            Add
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {todos.map((todo) => (
+            <div
+              key={todo.id}
+              className="bg-zinc-900 p-4 rounded-xl flex justify-between items-center"
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={todo.completed}
+                  onChange={() =>
+                    toggleTodo(todo.id, todo.completed)
+                  }
+                />
+
+                <p
+                  className={
+                    todo.completed
+                      ? "line-through text-gray-500"
+                      : ""
+                  }
+                >
+                  {todo.text}
+                </p>
+              </div>
+
+              <button onClick={() => deleteTodo(todo.id)}>
+                🗑️
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
